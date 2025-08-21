@@ -10,6 +10,10 @@ dotenv.config();
 const app = express();
 app.use(cors());
 
+// HTTPリクエストに対する応答を追加
+app.get('/', (req, res) => {
+  res.send('WebSocket server is running. Connect to /ws');
+});
 // PostgreSQLデータベースの設定
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
