@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const dotenv = require('dotenv');
 const cors = require('cors');
 
+// 環境変数を読み込む
 dotenv.config();
 
 const app = express();
@@ -22,20 +23,27 @@ const server = app.listen(process.env.PORT || 8000, () => {
 
 const wss = new WebSocketServer({ server });
 
-// データベースの初期化
+// データベースの初期化とテーブル作成
 async function initDb() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS pixels (
-      id SERIAL PRIMARY KEY,
-      x INT NOT NULL,
-      y INT NOT NULL,
-      color VARCHAR(7) NOT NULL,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  console.log('Database initialized successfully.');
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pixels (
+        x INT NOT NULL,
+        y INT NOT NULL,
+        color VARCHAR(7) NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (x, y)
+      );
+    `);
+    console.log('Database initialized successfully.');
+  } catch (err) {
+    console.error('Failed to initialize database:', err);
+    // データベース接続に失敗した場合、アプリケーションを終了
+    process.exit(1); 
+  }
 }
 
+// 起動時にデータベース接続を試行
 initDb();
 
 // 全クライアントにブロードキャストするヘルパー関数
@@ -69,7 +77,7 @@ wss.on('connection', async ws => {
         await pool.query(
           `INSERT INTO pixels (x, y, color) 
            VALUES ($1, $2, $3) 
-           ON CONFLICT (x, y) DO UPDATE SET color = $3`,
+           ON CONFLICT (x, y) DO UPDATE SET color = $3, updated_at = CURRENT_TIMESTAMP`,
           [x, y, color]
         );
 
